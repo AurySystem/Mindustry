@@ -13,7 +13,7 @@ background
   index: -1
 blank
   rotate: false
-  xy: 424, 195
+  xy: 791, 491
   size: 1, 1
   orig: 1, 1
   offset: 0, 0
@@ -2819,7 +2819,7 @@ missileturret
   index: -1
 missileturret-icon
   rotate: false
-  xy: 854, 318
+  xy: 853, 317
   size: 10, 10
   orig: 10, 10
   offset: 0, 0
@@ -3050,7 +3050,7 @@ turretfirespeedup
   index: -1
 icon-blackstone
   rotate: false
-  xy: 840, 273
+  xy: 1006, 358
   size: 8, 8
   orig: 8, 8
   offset: 0, 0

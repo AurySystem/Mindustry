@@ -24,30 +24,19 @@ import java.util.Arrays;
 import static io.anuke.mindustry.Vars.syncBlockState;
 
 public class Teleporter extends PowerBlock{
-	public static final Color[] colorArray = {Color.ROYAL, Color.ORANGE, Color.SCARLET, Color.FOREST,
-			Color.PURPLE, Color.GOLD, Color.WHITE, Color.BLACK, Color.GRAY, Color.CYAN, Color.CHARTREUSE, Color.PINK};
-	public static final int colors = colorArray.length;
 
-	private static ObjectSet<Tile>[] teleporters = new ObjectSet[colors];
-	private static byte lastColor = 0;
-
+	protected int capacity = 180;
 	private Array<Tile> removal = new Array<>();
 	private Array<Tile> returns = new Array<>();
 
-	protected float powerPerItem = 0.8f;
+	protected float powerPerItem = 0.12f;
 
-	static{
-		for(int i = 0; i < colors; i ++){
-			teleporters[i] = new ObjectSet<>();
-		}
-	}
-	
 	public Teleporter(String name) {
 		super(name);
 		update = true;
 		solid = true;
 		health = 80;
-		powerCapacity = 30f;
+		powerCapacity = 40f;
 		instantTransfer = true;
 	}
 
@@ -55,10 +44,13 @@ public class Teleporter extends PowerBlock{
 	public void configure(Tile tile, byte data) {
 		TeleporterEntity entity = tile.entity();
 		if(entity != null){
-			entity.color = data;
+			entity.connectID = data;
 			Arrays.fill(entity.items, 0);
 		}
 	}
+
+	@Override
+	public boolean isConfigurable(Tile tile) {return true;}
 
 	@Override
 	public void getStats(Array<String> list){
@@ -68,18 +60,15 @@ public class Teleporter extends PowerBlock{
 
 	@Override
 	public void placed(Tile tile){
-		tile.<TeleporterEntity>entity().color = lastColor;
-		setConfigure(tile, lastColor);
+		tile.<TeleporterEntity>entity().connectID = lastConnected;
+		setConfigure(tile, lastConnected);
+
 	}
 	
 	@Override
 	public void draw(Tile tile){
-		TeleporterEntity entity = tile.entity();
-		
 		super.draw(tile);
-		
-		Draw.color(colorArray[entity.color]);
-		Draw.rect("teleporter-top", tile.worldx(), tile.worldy(), 24, 24);
+
 		Draw.color(Color.WHITE);
 		Draw.alpha(0.45f + Mathf.absin(Timers.time(), 7f, 0.26f));
 		Draw.rect("blank", tile.worldx(), tile.worldy(), 2 ,2);
@@ -90,69 +79,30 @@ public class Teleporter extends PowerBlock{
 	public void update(Tile tile){
 		TeleporterEntity entity = tile.entity();
 
-		teleporters[entity.color].add(tile);
+		teleporters[entity.connectID].add(tile);
 
-		if(entity.totalItems() > 0){
+		if(entity.totalItems() > 0) {
 			tryDump(tile);
 		}
+
 	}
 
 	@Override
-	public boolean isConfigurable(Tile tile){
-		return true;
+	public void tapped(Tile tile) {
 	}
-	
-	@Override
-	public void buildTable(Tile tile, Table table){
-		TeleporterEntity entity = tile.entity();
 
-		ButtonGroup<ImageButton> group = new ButtonGroup<>();
-		Table cont = new Table();
-		cont.margin(4);
-		cont.marginBottom(5);
-
-		cont.add().colspan(4).height(105f);
-		cont.row();
-
-		for(int i = 0; i < colors; i ++){
-			final int f = i;
-			ImageButton button = cont.addImageButton("white", "toggle", 16, () -> {
-				lastColor = (byte)f;
-				setConfigure(tile, (byte)f);
-			}).size(34, 38).padBottom(-5.1f).group(group).get();
-			button.getStyle().imageUpColor = colorArray[f];
-			button.setChecked(entity.color == f);
-
-			if(i%4 == 3){
-				cont.row();
-			}
-		}
-
-		table.add(cont);
-	}
-	
-	@Override
-	public void handleItem(Item item, Tile tile, Tile source){
-		PowerEntity entity = tile.entity();
-
-		Array<Tile> links = findLinks(tile);
-		
-		if(links.size > 0){
-            if(!syncBlockState || Net.server() || !Net.active()){
-                Tile target = links.random();
-                target.entity.addItem(item, 1);
-            }
-		}
-
-		entity.power -= powerPerItem;
-	}
-	
 	@Override
 	public boolean acceptItem(Item item, Tile tile, Tile source){
-		PowerEntity entity = tile.entity();
-		return !(source.block() instanceof Teleporter) && entity.power >= powerPerItem && findLinks(tile).size > 0;
+		TeleporterEntity entity = tile.entity();
+		return !(source.block() instanceof Teleporter) && entity.getItem(item) < capacity;
 	}
-	
+
+	@Override
+	public void handleItem(Item item, Tile tile, Tile source){
+		TeleporterEntity entity = tile.entity();
+		entity.addItem(item, 1);
+	}
+
 	@Override
 	public TileEntity getEntity(){
 		return new TeleporterEntity();
@@ -164,10 +114,10 @@ public class Teleporter extends PowerBlock{
 		removal.clear();
 		returns.clear();
 		
-		for(Tile other : teleporters[entity.color]){
+		for(Tile other : teleporters[entity.connectID]){
 			if(other != tile){
 				if(other.block() instanceof Teleporter){
-					if(other.<TeleporterEntity>entity().color != entity.color){
+					if(other.<TeleporterEntity>entity().connectID != entity.connectID){
 						removal.add(other);
 					}else if(other.entity.totalItems() == 0){
 						returns.add(other);
@@ -179,23 +129,27 @@ public class Teleporter extends PowerBlock{
 		}
 
 		for(Tile remove : removal)
-			teleporters[entity.color].remove(remove);
+			teleporters[entity.connectID].remove(remove);
 		
 		return returns;
 	}
 
 	public static class TeleporterEntity extends PowerEntity{
-		public byte color = 0;
-		
+		public byte connectID = 00;
+
+
 		@Override
 		public void write(DataOutputStream stream) throws IOException{
-			stream.writeByte(color);
+			stream.writeByte(connectID);
 		}
-		
+
 		@Override
 		public void read(DataInputStream stream) throws IOException{
-			color = stream.readByte();
+			connectID = stream.readByte();
 		}
+
+		}
+
 	}
 
 }

@@ -78,7 +78,6 @@ public class Block{
 	public int variants = 0;
 	/**stuff that drops when broken*/
 	public ItemStack drops = null;
-	/**multiblock width/height*/
 	public int harvestlevel = 0;
 	/**liquids that drop from this block, used for pumps*/
 	public Liquid liquidDrop = null;
@@ -199,19 +198,28 @@ public class Block{
 			return;
 		}
 
+		Array<Tile> nearby = new Array<>();
+		nearby.addAll(tile.getNearbyTiles());
+
+		int rim = nearby.size;
+		Array<Tile> edge = new Array<>();
+		edge.addAll(tile.getEdgeTiles());
+
 		byte i = tile.getDump();
-		byte pdump = (byte)(i % 4);
+		byte pdump = (byte)(i % rim);
 		
-		for(int j = 0; j < 4; j ++){
-			Tile other = tile.getNearby(i);
-			if(other != null && other.block().acceptItem(item, other, tile)){
-				other.block().handleItem(item, other, tile);
-				tile.setDump((byte)((i+1)%4));
-				if(Net.server() && syncBlockState) NetEvents.handleTransfer(tile, i, item);
+		for(int j = 0; j < rim; j ++){
+			Tile other = nearby.get(i);
+			Tile in = edge.get(i);
+			byte rotation = in.relativeTo(other.x,other.y);
+			if(other != null && other.block().acceptItem(item, other, in)){
+				other.block().handleItem(item, other, in);
+				tile.setDump((byte)((i+1)%rim));
+				if(Net.server() && syncBlockState) NetEvents.handleTransfer(in, rotation, item);
 				return;
 			}
 			i++;
-			i %= 4;
+			i %= rim;
 		}
 		tile.setDump(pdump);
 		handleItem(item, tile, tile);
@@ -263,11 +271,7 @@ public class Block{
 			for(int j = 0; j < rim; j ++){
 				Tile other = nearby.get(i);
 				Tile in = edge.get(i);
-				boolean seg0 = i <= height && i >= height+width;
-				boolean seg1 = i <= height+width && i >= (height*2)+width;
-				boolean seg2 = i <= (height*2)+width && i >= (height*2)+(width*2);
-				byte rotation = seg0 ? 0 : seg1 ? (byte)1 : seg2 ? (byte)2 : 3;
-
+                byte rotation = in.relativeTo(other.x,other.y);
 
 					for(Item item : Item.getAllItems()){
 					
@@ -335,7 +339,11 @@ public class Block{
 	public boolean isMultiblock(){
 		return width != 1 || height != 1;
 	}
-	
+
+	public int multiblocksize(){
+		return ((width + height) / 2);
+	}
+
 	public static Array<Block> getAllBlocks(){
 		return blocks;
 	}

@@ -65,7 +65,7 @@ public class DistributionBlocks{
 	powerlasercorner = new PowerLaserRouter("powerlasercorner"){{
 		laserDirections = 2;
 	}},
-	teleporter = new Teleporter("teleporter"){{
+	teleporter = new MassMatrix("teleporter"){{
 		width = height= 3;
 	}},
 	sorter = new Sorter("sorter"){{
